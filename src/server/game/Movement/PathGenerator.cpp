@@ -653,7 +653,7 @@ void PathGenerator::CreateFilter()
     if (_source->GetTypeId() == TYPEID_UNIT)
     {
         Creature* creature = (Creature*)_source;
-        if (creature->CanWalk())
+        if (!creature->IsAquatic())
             includeFlags |= NAV_GROUND;          // walk
 
         // creatures don't take environmental damage

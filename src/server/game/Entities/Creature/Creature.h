@@ -94,9 +94,6 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         void SelectWildBattlePetLevel();
         void LoadEquipment(int8 id = 1, bool force = false);
         void SetSpawnHealth();
-        void LoadTemplateRoot();
-        bool IsTemplateRooted() const { return _staticFlags.HasFlag(CREATURE_STATIC_FLAG_SESSILE); }
-        void SetTemplateRooted(bool rooted);
 
         ObjectGuid::LowType GetSpawnId() const { return m_spawnId; }
 
@@ -116,15 +113,39 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         bool IsTrigger() const { return (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_TRIGGER) != 0; }
         bool IsGuard() const { return (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_GUARD) != 0; }
 
-        void InitializeMovementFlags();
+        // Called when a creature is being created and when it reaches its home position. Used to initially determine which kinds of movement a creature is allowed to perform.
+        void InitializeMovementCapabilities();
+        // Updates the falling and swimming state of the creature
         void UpdateMovementFlags();
 
         CreatureMovementData const& GetMovementTemplate() const;
-        bool CanWalk() const { return GetMovementTemplate().IsGroundAllowed(); }
+
+        // Returns true if a creature is strictly bound to liquids (e.g. fish or sharks). These creatures cannot leave liquids.
+        bool IsAquatic() const { return _staticFlags.HasFlag(CREATURE_STATIC_FLAG_AQUATIC); }
+        void SetAquatic(bool apply) { _staticFlags.ApplyFlag(CREATURE_STATIC_FLAG_AQUATIC, apply); }
+
+        // Returns true if a creature is allowed to enter and leave liquids. When not paired with UNIT_FLAG_CAN_SWIM the creature will remain on the ocean floor but will be able to swim when engaged, unless it's forbidden by UNIT_FLAG_CANT_SWIM
+        bool IsAmphibious() const { return _staticFlags.HasFlag(CREATURE_STATIC_FLAG_AMPHIBIOUS); }
+        void SetAmphibious(bool apply) { _staticFlags.ApplyFlag(CREATURE_STATIC_FLAG_AMPHIBIOUS, apply); }
+
+        // Returns true if a creature is permanently allowed to fly via DisableGravity
+        bool IsFloating() const { return _staticFlags.HasFlag(CREATURE_STATIC_FLAG_FLOATING); }
+        void SetFloating(bool apply);
+
+        // Returns true if a creature is permanently rooted (e.g. Totems). These creatures cannot be unrooted.
+        bool IsSessile() const { return _staticFlags.HasFlag(CREATURE_STATIC_FLAG_SESSILE); }
+        void SetSessile(bool apply);
+
+        // Returns true if the creature is now allowed to move below a liquid surface (e.g. some flying units and waterwalking creatures like the Zangarmarsh striders)
+        bool CannotPenetrateWater() const { return _staticFlags.HasFlag(CREATURE_STATIC_FLAG_3_CANNOT_PENETRATE_WATER); }
+        void SetCannotPenetrateWater(bool apply) { _staticFlags.ApplyFlag(CREATURE_STATIC_FLAG_3_CANNOT_PENETRATE_WATER, apply); }
+
+        void SetCanSwim(bool apply);
+        void SetCannotSwim(bool apply);
+
         bool CanSwim() const override;
-        bool CanEnterWater() const override;
-        bool CanFly()  const override { return GetMovementTemplate().IsFlightAllowed() || IsFlying(); }
-        bool CanHover() const { return GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || IsHovering(); }
+        bool CanEnterWater() const override { return CanSwim() || IsAmphibious(); };
+        bool CanFly()  const override { return IsFlying() || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY); }
 
         MovementGeneratorType GetDefaultMovementType() const override { return m_defaultMovementType; }
         void SetDefaultMovementType(MovementGeneratorType mgt) { m_defaultMovementType = mgt; }
@@ -405,12 +426,6 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         uint32 CalculateDamageForSparring(Unit* attacker, uint32 damage);
         bool ShouldFakeDamageFrom(Unit* attacker);
 
-        bool HasCanSwimFlagOutOfCombat() const
-        {
-            return !_isMissingCanSwimFlagOutOfCombat;
-        }
-        void RefreshCanSwimFlag(bool recheck = false);
-
         std::string GetDebugInfo() const override;
 
         void ExitVehicle(Position const* exitPosition = nullptr) override;
@@ -521,8 +536,6 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
 
         // Regenerate health
         bool _regenerateHealth; // Set on creation
-
-        bool _isMissingCanSwimFlagOutOfCombat;
 
         uint32 _gossipMenuId;
         Optional<uint32> _trainerId;
