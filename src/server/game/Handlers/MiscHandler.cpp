@@ -446,21 +446,23 @@ void WorldSession::HandleReclaimCorpse(WorldPackets::Misc::ReclaimCorpse& /*pack
 
 void WorldSession::HandleResurrectResponse(WorldPackets::Misc::ResurrectResponse& packet)
 {
-    if (GetPlayer()->IsAlive())
+    if (_player->IsAlive())
         return;
 
+    // Packet spoofing checks
+    if (!_player->HasResurrectionRequestByUnit(packet.Resurrecter) || !_player->HasRespondedToResurrectionRequest() || _player->HasExpiredResurrectionRequest())
+        return;
+
+    _player->SetResurrectionRequestResponse(static_cast<uint8>(packet.Response));
     if (packet.Response != 0) // Accept = 0 Decline = 1 Timeout = 2
     {
-        GetPlayer()->ClearResurrectRequestData();           // reject
+        _player->ClearResurrectRequestData(); // reject
         return;
     }
 
-    if (!GetPlayer()->IsResurrectRequestedBy(packet.Resurrecter))
-        return;
-
-    if (Player* ressPlayer = ObjectAccessor::GetPlayer(*GetPlayer(), packet.Resurrecter))
+    if (Player* resurrecter = ObjectAccessor::GetPlayer(*_player, packet.Resurrecter))
     {
-        if (InstanceScript* instance = ressPlayer->GetInstanceScript())
+        if (InstanceScript* instance = resurrecter->GetInstanceScript())
         {
             if (instance->IsEncounterInProgress())
             {
@@ -472,7 +474,7 @@ void WorldSession::HandleResurrectResponse(WorldPackets::Misc::ResurrectResponse
         }
     }
 
-    GetPlayer()->ResurrectUsingRequestData();
+    _player->ResurrectUsingRequestData();
 }
 
 void WorldSession::HandleAreaTriggerOpcode(WorldPackets::AreaTrigger::AreaTrigger& packet)

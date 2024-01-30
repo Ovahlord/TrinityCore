@@ -413,6 +413,8 @@ void Spell::EffectUnused()
     // NOT USED BY ANY SPELL OR USELESS OR IMPLEMENTED IN DIFFERENT WAY IN TRINITY
 }
 
+static constexpr Milliseconds RESURRECTION_REQUEST_RESPONSE_TIME = 2min;
+
 void Spell::EffectResurrectNew()
 {
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
@@ -431,13 +433,18 @@ void Spell::EffectResurrectNew()
     if (!player || player->IsAlive() || !player->IsInWorld())
         return;
 
-    if (player->IsResurrectRequested())       // already have one active request
+    if (player->HasResurrectionRequest())       // already have one active request
         return;
 
     uint32 health = damage;
     uint32 mana = effectInfo->MiscValue;
     ExecuteLogEffectResurrect(SpellEffectName(effectInfo->Effect), player);
-    player->SetResurrectRequestData(m_caster, health, mana, 0);
+
+    Optional<Milliseconds> resurrectionRequestTimer;
+    if (!m_spellInfo->HasAttribute(SPELL_ATTR3_NO_RES_TIMER))
+        resurrectionRequestTimer = RESURRECTION_REQUEST_RESPONSE_TIME;
+
+    player->SetResurrectionRequestData(m_caster, health, mana, 0, resurrectionRequestTimer);
     SendResurrectRequest(player);
 }
 
@@ -3589,7 +3596,7 @@ void Spell::EffectResurrect()
     if (!player || player->IsAlive() || !player->IsInWorld())
         return;
 
-    if (player->IsResurrectRequested())       // already have one active request
+    if (player->HasResurrectionRequest())       // already have one active request
         return;
 
     uint32 health = player->CountPctFromMaxHealth(damage);
@@ -3597,7 +3604,11 @@ void Spell::EffectResurrect()
 
     ExecuteLogEffectResurrect(SpellEffectName(effectInfo->Effect), player);
 
-    player->SetResurrectRequestData(m_caster, health, mana, 0);
+    Optional<Milliseconds> resurrectionRequestTimer;
+    if (!m_spellInfo->HasAttribute(SPELL_ATTR3_NO_RES_TIMER))
+        resurrectionRequestTimer = RESURRECTION_REQUEST_RESPONSE_TIME;
+
+    player->SetResurrectionRequestData(m_caster, health, mana, 0, resurrectionRequestTimer);
     SendResurrectRequest(player);
 }
 
@@ -5287,7 +5298,7 @@ void Spell::EffectResurrectWithAura()
     if (unitTarget->IsAlive())
         return;
 
-    if (target->IsResurrectRequested())       // already have one active request
+    if (target->HasResurrectionRequest())       // already have one active request
         return;
 
     uint32 health = target->CountPctFromMaxHealth(damage);
@@ -5300,7 +5311,12 @@ void Spell::EffectResurrectWithAura()
         return;
 
     ExecuteLogEffectResurrect(SpellEffectName(effectInfo->Effect), target);
-    target->SetResurrectRequestData(m_caster, health, mana, resurrectAura);
+
+    Optional<Milliseconds> resurrectionRequestTimer;
+    if (!m_spellInfo->HasAttribute(SPELL_ATTR3_NO_RES_TIMER))
+        resurrectionRequestTimer = RESURRECTION_REQUEST_RESPONSE_TIME;
+
+    target->SetResurrectionRequestData(m_caster, health, mana, resurrectAura, resurrectionRequestTimer);
     SendResurrectRequest(target);
 }
 

@@ -1049,6 +1049,8 @@ void Player::Update(uint32 p_time)
         m_regenTimer += p_time;
         RegenerateAll();
     }
+    else
+        UpdateResurrectionRequestTimer(Milliseconds(p_time));
 
     if (m_deathState == JUST_DIED)
         KillPlayer();
@@ -22658,17 +22660,20 @@ void Player::UpdatePotionCooldown(Spell* spell)
     m_lastPotionId = 0;
 }
 
-void Player::SetResurrectRequestData(WorldObject const* caster, uint32 health, uint32 mana, uint32 appliedAura)
+void Player::SetResurrectionRequestData(WorldObject const* caster, uint32 health, uint32 mana, uint32 appliedAura, Optional<Milliseconds> duration /*= {}*/)
 {
-    ASSERT(!IsResurrectRequested());
-    _resurrectionData.reset(new ResurrectionData());
-    _resurrectionData->GUID = caster->GetGUID();
-    _resurrectionData->Location.WorldRelocate(*caster);
-    _resurrectionData->Health = health;
-    _resurrectionData->Mana = mana;
-    _resurrectionData->Aura = appliedAura;
+    ASSERT(!_resurrectionData);
+    _resurrectionData = std::make_unique<ResurrectionData>(caster->GetGUID(), *caster, health, mana, appliedAura, duration);
 }
 
+void Player::UpdateResurrectionRequestTimer(Milliseconds diff)
+{
+    if (!_resurrectionData || !_resurrectionData->RemainingDuration.has_value())
+        return;
+
+    if (*_resurrectionData->RemainingDuration >= diff)
+        *_resurrectionData->RemainingDuration -= diff;
+}
                                                            //slot to be excluded while counting
 bool Player::EnchantmentFitsRequirements(uint32 enchantmentcondition, int8 slot) const
 {
@@ -24866,26 +24871,21 @@ void Player::ResurrectUsingRequestData()
 
 void Player::ResurrectUsingRequestDataImpl()
 {
-    // save health and mana before resurrecting, _resurrectionData can be erased
-    uint32 resurrectHealth = _resurrectionData->Health;
-    uint32 resurrectMana = _resurrectionData->Mana;
-    uint32 resurrectAura = _resurrectionData->Aura;
-    ObjectGuid resurrectGUID = _resurrectionData->GUID;
-
     ResurrectPlayer(0.0f, false);
 
-    SetHealth(resurrectHealth);
-    SetPower(POWER_MANA, resurrectMana);
+    SetHealth(_resurrectionData->Health);
+    SetPower(POWER_MANA, _resurrectionData->Mana);
 
     SetPower(POWER_RAGE, 0);
     SetFullPower(POWER_ENERGY);
     SetFullPower(POWER_FOCUS);
 
-    if (uint32 aura = resurrectAura)
-        CastSpell(this, aura, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
-            .SetOriginalCaster(resurrectGUID));
+    if (_resurrectionData->AuraSpellId)
+        CastSpell(this, _resurrectionData->AuraSpellId, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+            .SetOriginalCaster(_resurrectionData->RequesterGUID));
 
     SpawnCorpseBones();
+    ClearResurrectRequestData();
 }
 
 void Player::SetClientControl(Unit* target, bool allowMove)

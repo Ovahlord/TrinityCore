@@ -110,7 +110,7 @@ public:
                         FlyBackTimer = 4500;
                         break;
                     case 2:
-                        if (!player->IsResurrectRequested())
+                        if (!player->HasResurrectionRequest())
                         {
                             me->HandleEmoteCommand(EMOTE_ONESHOT_CUSTOM_SPELL_01);
                             DoCast(player, SPELL_REVIVE, true);

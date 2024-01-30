@@ -1016,11 +1016,16 @@ struct VoidStorageItem
 
 struct ResurrectionData
 {
-    ObjectGuid GUID;
+    ResurrectionData(ObjectGuid requesterGuid, WorldLocation location, uint32 health, uint32 mana, uint32 auraSpellId, Optional<Milliseconds> duration = {}) :
+        RequesterGUID(requesterGuid), Location(location), Health(health), Mana(mana), AuraSpellId(auraSpellId), RemainingDuration(duration) { }
+
+    ObjectGuid RequesterGUID;
     WorldLocation Location;
     uint32 Health;
     uint32 Mana;
-    uint32 Aura;
+    uint32 AuraSpellId;
+    Optional<Milliseconds> RemainingDuration;
+    Optional<uint8> Response;
 };
 
 struct GroupUpdateCounter
@@ -1867,21 +1872,16 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetLastPotionId(uint32 item_id) { m_lastPotionId = item_id; }
         void UpdatePotionCooldown(Spell* spell = nullptr);
 
-        void SetResurrectRequestData(WorldObject const* caster, uint32 health, uint32 mana, uint32 appliedAura);
-        void ClearResurrectRequestData()
-        {
-            _resurrectionData.reset();
-        }
+        // Resurrection
+        void SetResurrectionRequestData(WorldObject const* caster, uint32 health, uint32 mana, uint32 appliedAura, Optional<Milliseconds> duration = {});
+        void UpdateResurrectionRequestTimer(Milliseconds diff);
+        void ClearResurrectRequestData() { _resurrectionData = nullptr; }
+        void SetResurrectionRequestResponse(uint8 response) { if (_resurrectionData) _resurrectionData->Response = response; };
+        bool HasResurrectionRequestByUnit(ObjectGuid const& guid) const { return _resurrectionData && _resurrectionData->RequesterGUID == guid; }
+        bool HasResurrectionRequest() const { return _resurrectionData != nullptr; }
+        bool HasRespondedToResurrectionRequest() const { return _resurrectionData && _resurrectionData->Response.has_value(); }
+        bool HasExpiredResurrectionRequest() const { return _resurrectionData && _resurrectionData->RemainingDuration.has_value() && *_resurrectionData->RemainingDuration <= 0ms; }
 
-        bool IsResurrectRequestedBy(ObjectGuid const& guid) const
-        {
-            if (!IsResurrectRequested())
-                return false;
-
-            return !_resurrectionData->GUID.IsEmpty() && _resurrectionData->GUID == guid;
-        }
-
-        bool IsResurrectRequested() const { return _resurrectionData.get() != nullptr; }
         void ResurrectUsingRequestData();
         void ResurrectUsingRequestDataImpl();
 
