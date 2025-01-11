@@ -4827,7 +4827,10 @@ void Spell::SendSpellGo()
         && !(_triggeredCastFlags & TRIGGERED_IGNORE_POWER_COST))
     {
         castFlags |= CAST_FLAG_NO_GCD; // not needed, but Blizzard sends it
-        castFlags |= CAST_FLAG_RUNE_LIST; // rune cooldowns list
+
+        // Runes may have been refunded after missing so we don't need to refresh the rune cooldown list
+        if (*GetPowerTypeCostAmount(POWER_RUNE_BLOOD) > 0 || *GetPowerTypeCostAmount(POWER_RUNE_FROST) > 0|| *GetPowerTypeCostAmount(POWER_RUNE_UNHOLY) > 0)
+            castFlags |= CAST_FLAG_RUNE_LIST; // rune cooldowns list
     }
 
     if (m_targets.HasTraj())
