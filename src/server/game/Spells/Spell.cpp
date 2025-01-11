@@ -5426,14 +5426,16 @@ void Spell::TakePower()
     }
 
     bool hit = true;
+    bool discountPower = false;
     if (unitCaster->GetTypeId() == TYPEID_PLAYER)
     {
-        if (m_spellInfo->HasAttribute(SPELL_ATTR1_DISCOUNT_POWER_ON_MISS))
-        {
-            ObjectGuid targetGUID = m_targets.GetUnitTargetGUID();
-            if (!targetGUID.IsEmpty())
-                hit = std::ranges::any_of(m_UniqueTargetInfo, [&](TargetInfo const& targetInfo) { return targetInfo.TargetGUID == targetGUID && targetInfo.MissCondition == SPELL_MISS_NONE; });
+        ObjectGuid targetGUID = m_targets.GetUnitTargetGUID();
+        if (!targetGUID.IsEmpty())
+            hit = std::ranges::any_of(m_UniqueTargetInfo, [&](TargetInfo const& targetInfo) { return targetInfo.TargetGUID == targetGUID && targetInfo.MissCondition == SPELL_MISS_NONE; });
 
+        if (!hit && m_spellInfo->HasAttribute(SPELL_ATTR1_DISCOUNT_POWER_ON_MISS))
+        {
+            discountPower = true;
             if (m_spendComboPoints)
                 m_spentComboPoints = 0;
         }
@@ -5442,6 +5444,9 @@ void Spell::TakePower()
     bool hasTakenRunePower = false;
     for (SpellPowerCost& cost : m_powerCost)
     {
+        if (discountPower)
+            cost.Amount = 0;
+
         if (!hit)
         {
             //lower spell cost on fail (by talent aura)
@@ -5449,15 +5454,15 @@ void Spell::TakePower()
                 modOwner->ApplySpellMod(m_spellInfo, SpellModOp::PowerCostOnMiss, cost.Amount);
         }
 
+        if (!cost.Amount)
+            continue;
+
         if ((cost.Power == POWER_RUNE_BLOOD || cost.Power == POWER_RUNE_FROST || cost.Power == POWER_RUNE_UNHOLY) && !hasTakenRunePower)
         {
             TakeRunePower(hit);
             hasTakenRunePower = true;
             continue;
         }
-
-        if (!cost.Amount)
-            continue;
 
         // health as power used
         if (cost.Power == POWER_HEALTH)
