@@ -480,6 +480,7 @@ struct CastSpellExtraArgsInit
     std::any CustomArg;
     Optional<Scripting::v2::ActionResultSetter<SpellCastResult>> ScriptResult;
     bool ScriptWaitsForSpellHit = false;
+    bool CastForcedByEffect = false;
 };
 
 struct TC_GAME_API CastSpellExtraArgs : public CastSpellExtraArgsInit
@@ -516,6 +517,7 @@ struct TC_GAME_API CastSpellExtraArgs : public CastSpellExtraArgsInit
     CastSpellExtraArgs& SetCustomArg(std::any customArg) { CustomArg = std::move(customArg); return *this; }
     CastSpellExtraArgs& SetScriptResult(Scripting::v2::ActionResultSetter<SpellCastResult> scriptResult) { ScriptResult.emplace(std::move(scriptResult)); return *this; }
     CastSpellExtraArgs& SetScriptWaitsForSpellHit(bool scriptWaitsForSpellHit) { ScriptWaitsForSpellHit = scriptWaitsForSpellHit; return *this; }
+    CastSpellExtraArgs& SetCastForcedByEffect(bool castForcedByEffect) { CastForcedByEffect = castForcedByEffect; return *this; }
 };
 
 struct SpellCastVisual

@@ -592,11 +592,17 @@ enum CurrentSpellTypes : uint8
     CURRENT_MELEE_SPELL             = 0,
     CURRENT_GENERIC_SPELL           = 1,
     CURRENT_CHANNELED_SPELL         = 2,
-    CURRENT_AUTOREPEAT_SPELL        = 3
+    CURRENT_AUTOREPEAT_SPELL        = 3,
+
+    // Slots to store spell casts triggered by force cast spell effects
+    CURRENT_FORCED_SPELL_1          = 4,
+    CURRENT_FORCED_SPELL_2          = 5,
+    CURRENT_FORCED_SPELL_3          = 6,
+
+    CURRENT_MAX_SPELL
 };
 
 #define CURRENT_FIRST_NON_MELEE_SPELL 1
-#define CURRENT_MAX_SPELL             4
 
 typedef std::list<Player*> SharedVisionList;
 

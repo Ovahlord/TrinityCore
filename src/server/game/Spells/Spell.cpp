@@ -7961,6 +7961,14 @@ CurrentSpellTypes Spell::GetCurrentContainer() const
     else if (m_spellInfo->IsChanneled())
         return CURRENT_CHANNELED_SPELL;
 
+    if (m_castForcedByEffect && m_caster->IsUnit())
+    {
+        Unit const* unitCaster = m_caster->ToUnit();
+        for (uint8 i = CURRENT_FORCED_SPELL_1; i <= CURRENT_FORCED_SPELL_3; ++i)
+            if (!unitCaster->GetCurrentSpell(i) || unitCaster->GetCurrentSpell(i)->getState() == SPELL_STATE_FINISHED)
+                return static_cast<CurrentSpellTypes>(i);
+    }
+
     return CURRENT_GENERIC_SPELL;
 }
 
